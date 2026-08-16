@@ -1477,14 +1477,38 @@ if (overdueCount > 0) {
         new Date(followUp.date) < today
     )
     .map((followUp, index) => {
-      const customer = customers.find(
-        (customer) => customer.id === followUp.customerId
-      );
+  const customer = customers.find(
+    (customer) => customer.id === followUp.customerId
+  );
 
-      return `🔴 Follow up with ${
-        customer?.name || "Unknown customer"
-      } — ${followUp.note || "No note"} — due ${followUp.date}`;
-    });
+  const dueDate = new Date(`${followUp.date}T00:00:00`);
+  const daysOverdue = Math.max(
+    1,
+    Math.floor(
+      (today.getTime() - dueDate.getTime()) /
+        (1000 * 60 * 60 * 24)
+    )
+  );
+
+  let urgency = "🟡 Follow up";
+  let action = "Contact the customer and ask for an update.";
+
+  if (daysOverdue >= 7) {
+    urgency = "🔴 Urgent";
+    action =
+      "Contact the customer today and ask for a clear decision or update.";
+  } else if (daysOverdue >= 3) {
+    urgency = "🟠 High priority";
+    action =
+      "Contact the customer soon and check whether they still need your service.";
+  }
+
+  return `${urgency}: ${
+    customer?.name || "Unknown customer"
+  } — ${daysOverdue} day(s) overdue.
+   Reason: ${followUp.note || "No note available"}.
+   Recommended action: ${action}`;
+})
 
   priorities.push(...overdueDetails);
 }
