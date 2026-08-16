@@ -1491,26 +1491,37 @@ if (overdueCount > 0) {
   );
 
   let urgency = "🟡 Follow up";
-  let action = "Contact the customer and ask for an update.";
+let action = "Contact the customer and ask for an update.";
+let priorityScore = 40;
 
-  if (daysOverdue >= 7) {
-    urgency = "🔴 Urgent";
-    action =
-      "Contact the customer today and ask for a clear decision or update.";
-  } else if (daysOverdue >= 3) {
-    urgency = "🟠 High priority";
-    action =
-      "Contact the customer soon and check whether they still need your service.";
-  }
+if (daysOverdue >= 7) {
+  urgency = "🔴 Urgent";
+  priorityScore = 90;
+  action =
+    "Contact the customer today and ask for a clear decision or update.";
+} else if (daysOverdue >= 3) {
+  urgency = "🟠 High priority";
+  priorityScore = 70;
+  action =
+    "Contact the customer soon and check whether they still need your service.";
+}
 
-  return `${urgency}: ${
-    customer?.name || "Unknown customer"
-  } — ${daysOverdue} day(s) overdue.
-   Reason: ${followUp.note || "No note available"}.
-   Recommended action: ${action}`;
-})
+return `⚡ ${urgency}: ${
+  customer?.name || "Unknown customer"
+} — ${daysOverdue} day(s) overdue.
+Priority score: ${priorityScore}/100.
+Reason: ${followUp.note || "No note available"}.
+Recommended action: ${action}`;
+    });
 
-  priorities.push(...overdueDetails);
+  overdueDetails.sort((a, b) => {
+  const scoreA = Number(a.match(/Priority score: (\d+)/)?.[1] ?? 0);
+  const scoreB = Number(b.match(/Priority score: (\d+)/)?.[1] ?? 0);
+
+  return scoreB - scoreA;
+});
+
+priorities.push(...overdueDetails);
 }
 
 // Upcoming appointments
