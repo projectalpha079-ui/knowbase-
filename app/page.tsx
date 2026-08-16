@@ -1547,10 +1547,52 @@ if (overdueCount >= 3) {
     "🟢 Your business looks active with upcoming appointments.";
 }
 
+const actionPlan: string[] = [];
+
+if (overdueCount > 0) {
+  actionPlan.push(
+    `🔴 Contact ${overdueCount} overdue customer follow-up(s) today.`
+  );
+}
+
+if (upcomingCount > 0) {
+  actionPlan.push(
+    `📅 Prepare for ${upcomingCount} upcoming appointment(s).`
+  );
+}
+
+if (customers.length === 0) {
+  actionPlan.push(
+    "👥 Add your first customers and start building your customer base."
+  );
+} else {
+  actionPlan.push(
+    `👥 Review your ${customers.length} customer(s) and identify customers who need follow-up.`
+  );
+}
+
+if (totalSales === 0) {
+  actionPlan.push(
+    "💰 No sales are recorded yet. Focus on converting existing leads/customers."
+  );
+} else {
+  actionPlan.push(
+    `💰 Review your recorded sales of ${totalSales.toLocaleString()} and look for opportunities to increase revenue.`
+  );
+}
+
 setAnswer(
-  `${healthStatus}\n\nToday's priorities:\n${priorities
-    .map((priority, index) => `${index + 1}. ${priority}`)
-    .join("\n")}`
+  `${healthStatus}
+
+Today's priorities:
+${priorities
+  .map((priority, index) => `${index + 1}. ${priority}`)
+  .join("\n")}
+
+Today's action plan:
+${actionPlan
+  .map((action, index) => `${index + 1}. ${action}`)
+  .join("\n")}`
 );
 
 return;
