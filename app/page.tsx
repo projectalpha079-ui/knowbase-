@@ -342,7 +342,12 @@ editCustomer={editCustomer}          />
 )}
 
         {activePage === "Reports" && (
-          <ComingSoon title="Reports" />
+          <ReportsPage
+  customers={customers}
+  followUps={followUps}
+  appointments={appointments}
+  sales={sales}
+/>
         )}
 
       </section>
@@ -1372,20 +1377,41 @@ function AIAssistantPage({
       q.includes("follow-ups") ||
       q.includes("follow ups")
     ) {
-      const today = new Date();
+      if (
+  q.includes("overdue") ||
+  q.includes("follow-ups") ||
+  q.includes("follow ups")
+) {
+  const today = new Date();
 
-      const overdue = followUps.filter(
-        (followUp) =>
-          followUp.status === "Pending" &&
-          new Date(followUp.date) < today
-      );
+  const overdue = followUps.filter(
+    (followUp) =>
+      followUp.status === "Pending" &&
+      new Date(followUp.date) < today
+  );
 
-      if (overdue.length === 0) {
-        setAnswer("You have no overdue follow-ups.");
-      } else {
-        setAnswer(`You have ${overdue.length} overdue follow-up(s).`);
-      }
-      return;
+  if (overdue.length === 0) {
+    setAnswer("You have no overdue follow-ups.");
+  } else {
+    const overdueDetails = overdue
+      .map((followUp, index) => {
+        const customer = customers.find(
+          (customer) => customer.id === followUp.customerId
+        );
+
+        return `${index + 1}. ${
+          customer?.name || "Unknown customer"
+        } — ${followUp.note} (${followUp.date})`;
+      })
+      .join("\n");
+
+    setAnswer(
+      `You have ${overdue.length} overdue follow-up(s):\n${overdueDetails}`
+    );
+  }
+
+  return;
+}
     }
 
     if (
@@ -1402,7 +1428,134 @@ function AIAssistantPage({
       return;
     }
 
-    setAnswer(
+  
+  // BUSINESS GUARDIAN — BUSINESS HEALTH & DAILY PRIORITIES
+
+if (
+  q.includes("what should i do today") ||
+  q.includes("what should i do") ||
+  q.includes("business health") ||
+  q.includes("business status") ||
+  q.includes("how is my business") ||
+  q.includes("what needs attention") ||
+  q.includes("priorities") ||
+  q.includes("priority")
+) {
+  const today = new Date();
+
+  // Count overdue follow-ups
+  const overdueCount = followUps.filter(
+    (followUp) =>
+      followUp.status === "Pending" &&
+      new Date(followUp.date) < today
+  ).length;
+
+  // Count upcoming appointments
+  const upcomingCount = appointments.filter(
+    (appointment) =>
+      appointment.status === "Scheduled" &&
+      new Date(
+        `${appointment.date}T${appointment.time}`
+      ) >= today
+  ).length;
+
+  // Calculate total sales
+  const totalSales = sales.reduce(
+    (total, sale) => total + sale.amount,
+    0
+  );
+
+ // Build business priorities
+const priorities: string[] = [];
+
+// Overdue follow-ups
+if (overdueCount > 0) {
+  const overdueDetails = followUps
+    .filter(
+      (followUp) =>
+        followUp.status === "Pending" &&
+        new Date(followUp.date) < today
+    )
+    .map((followUp, index) => {
+      const customer = customers.find(
+        (customer) => customer.id === followUp.customerId
+      );
+
+      return `🔴 Follow up with ${
+        customer?.name || "Unknown customer"
+      } — ${followUp.note || "No note"} — due ${followUp.date}`;
+    });
+
+  priorities.push(...overdueDetails);
+}
+
+// Upcoming appointments
+if (upcomingCount > 0) {
+  const upcomingDetails = appointments
+    .filter(
+      (appointment) =>
+        appointment.status === "Scheduled" &&
+        new Date(
+          `${appointment.date}T${appointment.time}`
+        ) >= today
+    )
+    .map((appointment) => {
+      const customer = customers.find(
+        (customer) => customer.id === appointment.customerId
+      );
+
+      return `📅 Appointment with ${
+        customer?.name || "Unknown customer"
+      } — ${appointment.date} at ${appointment.time}`;
+    });
+
+  priorities.push(...upcomingDetails);
+}
+
+// Customers
+if (customers.length === 0) {
+  priorities.push(
+    "🟡 You currently have no customers. Focus on bringing in your first customers."
+  );
+} else {
+  priorities.push(
+    `👥 You currently have ${customers.length} customer(s).`
+  );
+}
+
+// Sales
+if (totalSales === 0) {
+  priorities.push(
+    "🟡 No sales have been recorded yet. Focus on converting your existing leads/customers."
+  );
+} else {
+  priorities.push(
+    `💰 Your recorded sales total is ${totalSales.toLocaleString()}.`
+  );
+}
+
+let healthStatus = "🟢 Your business looks stable.";
+
+if (overdueCount >= 3) {
+  healthStatus =
+    "🔴 Your business needs attention because several follow-ups are overdue.";
+} else if (overdueCount > 0) {
+  healthStatus =
+    "🟡 Your business is active, but you have follow-ups that need attention.";
+} else if (upcomingCount > 0) {
+  healthStatus =
+    "🟢 Your business looks active with upcoming appointments.";
+}
+
+setAnswer(
+  `${healthStatus}\n\nToday's priorities:\n${priorities
+    .map((priority, index) => `${index + 1}. ${priority}`)
+    .join("\n")}`
+);
+
+return;
+}
+  setAnswer(
       "I can currently answer questions about customers, appointments, follow-ups and sales."
     );
   }
@@ -1456,9 +1609,9 @@ function AIAssistantPage({
               KnowBase AI
             </p>
 
-            <p className="mt-2">
-              {answer}
-            </p>
+            <p className="mt-2 whitespace-pre-line">
+  {answer}
+</p>
           </div>
         )}
 
@@ -1556,6 +1709,180 @@ function ComingSoon({
         <p className="mt-3 text-slate-400">
           This module will be built next.
         </p>
+
+      </div>
+
+    </div>
+  );
+}
+function ReportsPage({
+  customers,
+  followUps,
+  appointments,
+  sales,
+}: {
+  customers: Customer[];
+  followUps: FollowUp[];
+  appointments: Appointment[];
+  sales: Sale[];
+}) {
+  const totalSales = sales.reduce(
+    (total, sale) => total + sale.amount,
+    0
+  );
+
+  const pendingFollowUps = followUps.filter(
+    (followUp) => followUp.status === "Pending"
+  ).length;
+
+  const overdueFollowUps = followUps.filter(
+    (followUp) =>
+      followUp.status === "Pending" &&
+      new Date(followUp.date) < new Date()
+  ).length;
+
+  const scheduledAppointments = appointments.filter(
+    (appointment) => appointment.status === "Scheduled"
+  ).length;
+
+  const completedAppointments = appointments.filter(
+    (appointment) => appointment.status === "Completed"
+  ).length;
+
+  const averageSale =
+    sales.length > 0 ? totalSales / sales.length : 0;
+
+  return (
+    <div className="space-y-6">
+
+      <div>
+        <h2 className="text-3xl font-bold">
+          Business Reports
+        </h2>
+
+        <p className="mt-1 text-slate-400">
+          Your business performance at a glance.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+
+        <div className="rounded-xl border border-slate-700 bg-slate-900 p-5">
+          <p className="text-sm text-slate-400">
+            Total Customers
+          </p>
+
+          <p className="mt-2 text-3xl font-bold">
+            {customers.length}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-slate-700 bg-slate-900 p-5">
+          <p className="text-sm text-slate-400">
+            Total Sales
+          </p>
+
+          <p className="mt-2 text-3xl font-bold">
+            {totalSales.toLocaleString()}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-slate-700 bg-slate-900 p-5">
+          <p className="text-sm text-slate-400">
+            Average Sale
+          </p>
+
+          <p className="mt-2 text-3xl font-bold">
+            {averageSale.toLocaleString(undefined, {
+              maximumFractionDigits: 2,
+            })}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-slate-700 bg-slate-900 p-5">
+          <p className="text-sm text-slate-400">
+            Scheduled Appointments
+          </p>
+
+          <p className="mt-2 text-3xl font-bold">
+            {scheduledAppointments}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-slate-700 bg-slate-900 p-5">
+          <p className="text-sm text-slate-400">
+            Completed Appointments
+          </p>
+
+          <p className="mt-2 text-3xl font-bold">
+            {completedAppointments}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-slate-700 bg-slate-900 p-5">
+          <p className="text-sm text-slate-400">
+            Pending Follow-ups
+          </p>
+
+          <p className="mt-2 text-3xl font-bold">
+            {pendingFollowUps}
+          </p>
+
+          {overdueFollowUps > 0 && (
+            <p className="mt-2 text-sm text-red-400">
+              {overdueFollowUps} overdue
+            </p>
+          )}
+        </div>
+
+      </div>
+
+      <div className="rounded-xl border border-slate-700 bg-slate-900 p-6">
+
+        <h3 className="text-xl font-semibold">
+          Business Overview
+        </h3>
+
+        <div className="mt-4 space-y-3 text-sm">
+
+          <p>
+            You currently have{" "}
+            <span className="font-semibold text-cyan-400">
+              {customers.length}
+            </span>{" "}
+            customer(s).
+          </p>
+
+          <p>
+            Your recorded sales total{" "}
+            <span className="font-semibold text-cyan-400">
+              {totalSales.toLocaleString()}
+            </span>.
+          </p>
+
+          <p>
+            You have{" "}
+            <span className="font-semibold text-cyan-400">
+              {scheduledAppointments}
+            </span>{" "}
+            scheduled appointment(s).
+          </p>
+
+          <p>
+            You have{" "}
+            <span className="font-semibold text-cyan-400">
+              {pendingFollowUps}
+            </span>{" "}
+            pending follow-up(s).
+          </p>
+
+          {overdueFollowUps > 0 && (
+            <p className="text-red-400">
+              ⚠️ You have {overdueFollowUps} overdue follow-up(s) that need attention.
+            </p>
+          )}
+
+        </div>
 
       </div>
 
